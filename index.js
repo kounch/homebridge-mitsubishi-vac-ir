@@ -1,4 +1,20 @@
 /*
+homebridge-mitsubishi-vac-ir
+Version 0.0.2
+
+Mitsubihishi VAC IR Remote plugin for homebridge: https://github.com/nfarina/homebridge
+Copyright (c) 2017 @Kounch
+
+Permission to use, copy, modify, and/or distribute this software for any purpose with or without fee is hereby
+granted, provided that the above copyright notice and this permission notice appear in all copies.
+
+THE SOFTWARE IS PROVIDED “AS IS” AND ISC DISCLAIMS ALL WARRANTIES WITH REGARD TO THIS SOFTWARE INCLUDING ALL
+IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL ISC BE LIABLE FOR ANY SPECIAL, DIRECT,
+INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS,
+WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH 
+THE USE OR PERFORMANCE OF THIS SOFTWARE.
+
+Sample configuration file
 {
     "bridge": {
     	...
@@ -17,7 +33,7 @@
 */
 
 var Service, Characteristic;
-var exec = require("child_process").exec;
+var SerialPort = require('serialport');
 
 module.exports = function (homebridge) {
   Service = homebridge.hap.Service;
@@ -27,6 +43,8 @@ module.exports = function (homebridge) {
 
 function MitsubishiVACIRAccessory(log, config) {
   this.log = log;
+  this.portName = config.portname || "/dev/ttyACM0";
+
   this.name = config.name || "Mitsubishi VAC IR Accessory";
   this.manufacturer = config.manufacturer || "Mitsubishi";
   this.model = config.model || "Infrared Remote";
@@ -76,6 +94,62 @@ function MitsubishiVACIRAccessory(log, config) {
 }
 
 MitsubishiVACIRAccessory.prototype = {
+  serialSendCmd: function (message, callback) {
+    this.log("Serial port message:", message);
+
+    var datos = "";
+    var serialPort = new SerialPort(this.portName, {
+      baudrate: 9600
+    });
+
+    //Serial Port Events
+    serialPort.on("open", function () {
+      //this.log("open");
+    }.bind(this));;
+    serialPort.on('data', function (data) {
+      datos += data;
+    }.bind(this));;
+    serialPort.on('close', function () {
+      //this.log("closed");
+    }.bind(this));;
+
+    //Send Data after 2 seconds
+    setTimeout(function (mensa) {
+      //this.log("sending...");
+      for (var i = 0; i < mensa.length; i++) {
+        serialPort.write(new Buffer(mensa[i], 'ascii'), function (err, results) {
+          // this.log('Error: ' + err);
+          // this.log('Results ' + results);
+        });
+      }
+      // Sending the terminate character
+      serialPort.write(new Buffer('\n', 'ascii'), function (err, results) {
+        // this.log('err ' + err);
+        // this.log('results ' + results);
+      });
+      //this.log("sent");
+
+      // Get data and close port after 2.5 seconds
+      setTimeout(function () {
+        //this.log("closing....");
+        serialPort.close();
+
+        var result = "KO,Bad Serial Data";
+        var arrData = datos.split('\n');
+        if (arrData[0].trim() == 'BOOT') {
+          if (arrData.length > 1) {
+            result = arrData[1].trim();
+          }
+        }
+        arrData = result.split(",");
+        if (arrData[0] == "OK") {
+          callback(null, arrData[1]);
+        } else {
+          callback(arrData[1]);
+        }
+      }.bind(this), 2500);
+    }.bind(this), 2000, message);
+  },
   sendCmd: function (that, callback) {
     var cmd = "/var/opt/scripts/HomebridgeMitsubishi.py";
     var params = ["0", "22", "0", "0", "1"];
@@ -92,7 +166,6 @@ MitsubishiVACIRAccessory.prototype = {
       temperature = that.CoolingThresholdTemperature;
       futureState = Characteristic.CurrentHeaterCoolerState.COOLING;
     }
-
     //Mode: 0-auto, 1-hot, 2-cold, 3-dry, 4-fan
     switch (that.TargetHeaterCoolerState) {
       case Characteristic.TargetHeaterCoolerState.AUTO:
@@ -112,38 +185,32 @@ MitsubishiVACIRAccessory.prototype = {
         params[0] = "0";
         break;
     }
-
     //ThresholdTemperature (celsius, int)
     params[1] = Math.round(temperature).toString();
-  
     //Fan: 0-auto, 1,2,3,4,5-speed, 6-Silent)
     params[2] = "0";
     if (that.RotationSpeed) {
       params[2] = that.RotationSpeed.toString();
     }
-
     //Vane:  0-auto, 1,2,3,4,5-angle, 6-moving)
     params[3] = "0";
     if (that.Swingmode == Characteristic.SwingMode.SWING_ENABLED) {
       params[3] = "6";
     }
-
     //Status: 0-off, 1-on
     params[4] = "1";
     if (that.Active == Characteristic.Active.INACTIVE) {
       params[4] = "0";
       futureState = Characteristic.CurrentHeaterCoolerState.INACTIVE;
     }
-
-    //Execute Shell Command
-    cmd += " 'S," + params.join(",") + "'";
-    exec(cmd, function (error, stdout, stderr) {
+    //Send serial data
+    var msg = "S," + params.join(",");
+    this.serialSendCmd(msg, function (error, temperature) {
       if (error) {
-        this.log('command function failed: %s', stderr);
+        this.log("Serial command function failed:", error);
         callback(error);
       } else {
-        this.log('command function succeeded!');
-        //this.log(stdout);
+        this.log("Serial command function succedded");
         this.CurrentHeaterCoolerState = futureState;
         callback(null);
       }
@@ -199,14 +266,14 @@ MitsubishiVACIRAccessory.prototype = {
   },
   getCurrentTemperature: function (callback) {
     this.log("getCurrentTemperature");
-    var cmd = "/var/opt/scripts/HomebridgeMitsubishi.py 'G'";
-    exec(cmd, function (error, stdout, stderr) {
+    var msg = "G";
+    this.serialSendCmd(msg, function (error, temperature) {
       if (error) {
-        this.log('Get command function failed: %s', stderr);
+        this.log("Serial command function failed:", error);
         callback(error);
       } else {
-        this.log('Get command function succeeded!', stdout);
-        this.CurrentTemperature = Math.round(stdout * 100) / 100;
+        this.log("Serial command function succedded");
+        this.CurrentTemperature = Math.round(temperature * 100) / 100;
         callback(null, this.CurrentTemperature);
       }
     }.bind(this));
@@ -345,7 +412,7 @@ MitsubishiVACIRAccessory.prototype = {
     //  .getCharacteristic(Characteristic.Swingmode)
     //  .on('get', this.getSwingmode.bind(this))
     //  .on('set', this.setSwingmode.bind(this));
-    
+
     this.service
       .getCharacteristic(Characteristic.CoolingThresholdTemperature)
       .on('get', this.getCoolingThresholdTemperature.bind(this))
@@ -365,7 +432,7 @@ MitsubishiVACIRAccessory.prototype = {
       .getCharacteristic(Characteristic.RotationSpeed)
       .on('get', this.getRotationSpeed.bind(this))
       .on('set', this.setRotationSpeed.bind(this));
-    
+
     this.service
       .getCharacteristic(Characteristic.Name)
       .on('get', this.getName.bind(this));
