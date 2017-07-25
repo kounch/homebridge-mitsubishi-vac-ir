@@ -31,7 +31,7 @@ Edit your `config.json` accordingly. Configuration sample:
 
 
 ### Advanced Configuration (Optional)
-This step is not required. HomeBridge with API 2.0 can handle configurations in the HomeKit app.
+This step is not required.
  ```
     "accessories": [
         {
