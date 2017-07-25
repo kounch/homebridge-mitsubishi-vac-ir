@@ -45,6 +45,32 @@ function MitsubishiVACIRAccessory(log, config) {
   this.log = log;
   this.portName = config.portname || "/dev/ttyACM0";
 
+  var default_references = [{ "sensor_value": 1.0, "real_value": 1.0 }];
+  var references = config.references || default_references;
+  if (references.length == 1) {
+    var x1 = references[0].sensor_value;
+    var y1 = references[0].real_value;
+  
+    if (x1 != 0) {
+      this.slope = y1 / x1;
+    } else {
+      this.slope = 1.0;
+    }
+    this.intercept = 0.0;
+  } else {
+    var x1 = references[0].sensor_value;
+    var y1 = references[0].real_value;
+    var x2 = references[1].sensor_value;
+    var y2 = references[1].real_value;
+
+    if (x2 != x1) {
+      this.slope = (y2 - y1) / (x2 - x1);
+    } else {
+      this.slope = 1.0;
+    }
+    this.intercept = y1 - (this.slope * x1);
+  }
+
   this.name = config.name || "Mitsubishi VAC IR Accessory";
   this.manufacturer = config.manufacturer || "Mitsubishi";
   this.model = config.model || "Infrared Remote";
@@ -210,7 +236,7 @@ MitsubishiVACIRAccessory.prototype = {
         this.log("Serial command function failed:", error);
         callback(error);
       } else {
-        this.log("Serial command function succedded");
+        this.log("Serial command function succeeded");
         this.CurrentHeaterCoolerState = futureState;
         callback(null);
       }
@@ -272,8 +298,11 @@ MitsubishiVACIRAccessory.prototype = {
         this.log("Serial command function failed:", error);
         callback(error);
       } else {
-        this.log("Serial command function succedded");
+        //this.log("Serial command function succeeded");
+        this.log("Sensor:", Math.round(temperature * 100) / 100);
+        temperature = (temperature * this.slope) + this.intercept;
         this.CurrentTemperature = Math.round(temperature * 100) / 100;
+        this.log("Temperature:", this.CurrentTemperature)
         callback(null, this.CurrentTemperature);
       }
     }.bind(this));
