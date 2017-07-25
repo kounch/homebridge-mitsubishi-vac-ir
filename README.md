@@ -41,7 +41,12 @@ This step is not required. HomeBridge with API 2.0 can handle configurations in 
             "manufacturer": "Mitsubishi",
             "model": "Infrared Remote",
             "serialnumber": "KM05",
-
+            "references": [
+                {
+                    "sensor_value": 24.0,
+                    "real_value": 26.0
+                }
+            ]
         }
     ],
 ```
@@ -55,6 +60,8 @@ This step is not required. HomeBridge with API 2.0 can handle configurations in 
 | manufacturer       | Manufacturer of your device.                          | No       |
 | model              | Model of your device.                                 | No       |
 | serialnumber       | Serial number of your device.                         | No       |
+| references         | List of "sensor_value" and "real_value" references    | No       |
+
 
 
 \*Changing the `name` in `config.json` will create a new device instead of renaming the existing one in HomeKit. It's strongly recommended that you rename the switch using a HomeKit app only.
