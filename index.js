@@ -139,7 +139,7 @@ MitsubishiVACIRAccessory.prototype = {
       //this.log("closed");
     }.bind(this));;
 
-    //Send Data after 2 seconds
+    //Send Data after 1700 milliseconds
     setTimeout(function (mensa) {
       //this.log("sending...");
       for (var i = 0; i < mensa.length; i++) {
@@ -155,7 +155,7 @@ MitsubishiVACIRAccessory.prototype = {
       });
       //this.log("sent");
 
-      // Get data and close port after 2.5 seconds
+      // Get data and close port after 100 milliseconds
       setTimeout(function () {
         //this.log("closing....");
         serialPort.close();
@@ -173,8 +173,8 @@ MitsubishiVACIRAccessory.prototype = {
         } else {
           callback(arrData[1]);
         }
-      }.bind(this), 2500);
-    }.bind(this), 2000, message);
+      }.bind(this), 100);
+    }.bind(this), 1700, message);
   },
   sendCmd: function (that, callback) {
     var cmd = "/var/opt/scripts/HomebridgeMitsubishi.py";
