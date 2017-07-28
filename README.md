@@ -3,12 +3,12 @@ Arduino Mitsubishi VAC IR Plugin for [HomeBridge](https://github.com/nfarina/hom
 
 
 ### What this plugin does
-Using an Arduino board with a temperature sensor (LM35) and a 940nm IR LED (VS1838B), with the firmware available in https://github.com/kounch/homebridge-mitsubishi-vac-ir, allows to control Mitsubishi Air Conditioners via Homekit.
+Using an Arduino sends IR commands to a  Mitsubishi Air Conditioner.
 Take note thas, as of iOS 10, Apple's Home App does not support yet Heater/Cooler devices, so another App like Elgato Eve is neeeded.
 
 
 ### How this plugin works
-
+Using an Arduino board with a temperature sensor (LM35) and a 940nm IR LED (VS1838B), with the firmware available in https://github.com/kounch/homebridge-mitsubishi-vac-ir, allows to control Mitsubishi Air Conditioners via Homekit.
 
 ### Things to know about this plugin
 
