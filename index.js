@@ -1,6 +1,6 @@
 /*
 homebridge-mitsubishi-vac-ir
-Version 0.0.2
+Version 0.1.1
 
 Mitsubihishi VAC IR Remote plugin for homebridge: https://github.com/nfarina/homebridge
 Copyright (c) 2017 @Kounch
@@ -220,7 +220,7 @@ MitsubishiVACIRAccessory.prototype = {
     }
     //Vane:  0-auto, 1,2,3,4,5-angle, 6-moving)
     params[3] = "0";
-    if (that.Swingmode == Characteristic.SwingMode.SWING_ENABLED) {
+    if (that.SwingMode == Characteristic.SwingMode.SWING_ENABLED) {
       params[3] = "6";
     }
     //Status: 0-off, 1-on
@@ -437,10 +437,10 @@ MitsubishiVACIRAccessory.prototype = {
 
     // Optional Characteristics
 
-    //this.service
-    //  .getCharacteristic(Characteristic.Swingmode)
-    //  .on('get', this.getSwingmode.bind(this))
-    //  .on('set', this.setSwingmode.bind(this));
+    this.service
+      .getCharacteristic(Characteristic.SwingMode)
+      .on('get', this.getSwingMode.bind(this))
+      .on('set', this.setSwingMode.bind(this));
 
     this.service
       .getCharacteristic(Characteristic.CoolingThresholdTemperature)
