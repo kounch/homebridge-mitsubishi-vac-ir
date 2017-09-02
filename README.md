@@ -32,12 +32,35 @@ Edit your `config.json` accordingly. Configuration sample:
 
 ### Advanced Configuration (Optional)
 This step is not required.
+
+#### Serial Mode
  ```
     "accessories": [
         {
             "accessory": "MitsubishiVACIR",
             "name": "Mitsubishi VAC",
+            "mode": "serial",
             "portname": "/dev/ttyACM0",
+            "manufacturer": "Mitsubishi",
+            "model": "Infrared Remote",
+            "serialnumber": "KM05",
+            "references": [
+                {
+                    "sensor_value": 24.0,
+                    "real_value": 26.0
+                }
+            ]
+        }
+    ],
+```
+#### Network mode
+ ```
+    "accessories": [
+        {
+            "accessory": "MitsubishiVACIR",
+            "name": "Mitsubishi VAC",
+            "mode": "network",
+            "hostname": "arduino_mitsubishi.local",
             "manufacturer": "Mitsubishi",
             "model": "Infrared Remote",
             "serialnumber": "KM05",
@@ -56,7 +79,9 @@ This step is not required.
 |--------------------|-------------------------------------------------------|----------|
 | platform           | Must always be `MitsubishiVACIR`.                     | Yes      |
 | name               | Name of your device.                                  | No       |
-| portname           | Name of the port connected to Arduino                 | No       |
+| mode               | Connection mode, must be `serial` or `network`        | No       |
+| portname           | Name of the serial port connected to Arduino          | No       |
+| hostname           | Hostname or IP Address of Arduino Network Interface   | No       |
 | manufacturer       | Manufacturer of your device.                          | No       |
 | model              | Model of your device.                                 | No       |
 | serialnumber       | Serial number of your device.                         | No       |
@@ -64,7 +89,7 @@ This step is not required.
 
 
 
-\*Changing the `name` in `config.json` will create a new device instead of renaming the existing one in HomeKit. It's strongly recommended that you rename the switch using a HomeKit app only.
+\*Changing the `name` in `config.json` will create a new device instead of renaming the existing one in HomeKit. It's strongly recommended that you rename the accessory using a HomeKit app only.
 
 
 ### Copyright

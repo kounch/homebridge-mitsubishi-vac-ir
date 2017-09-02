@@ -1,6 +1,6 @@
 {
   "name": "homebridge-mitsubishi-vac-ir",
-  "version": "0.1.1",
+  "version": "1.0.0",
   "description": "Mitsubihishi VAC IR Remote plugin for homebridge: https://github.com/nfarina/homebridge",
   "license": "ISC",
   "keywords": [
