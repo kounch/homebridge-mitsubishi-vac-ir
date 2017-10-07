@@ -1,6 +1,6 @@
 /*
 homebridge-mitsubishi-vac-ir
-Version 1.0.0
+Version 1.0.1
 
 Mitsubihishi VAC IR Remote plugin for homebridge: https://github.com/nfarina/homebridge
 Copyright (c) 2017 @Kounch
@@ -129,62 +129,81 @@ function MitsubishiVACIRAccessory(log, config) {
 }
 
 MitsubishiVACIRAccessory.prototype = {
-  serialSendCmd: function (message, callback) {
-    this.log("Serial port message:", message);
+  serialSendCmd: function (message, retries, timeout, callback) {
+    //this.log("Serial port message:", message);
 
     var datos = "";
     var serialPort = new SerialPort(this.portName, {
       baudrate: 9600
-    });
+    },
+      function (err) {
+        if (err) {
+          if (retries) {
+            setTimeout(function () {
+              //this.log("Retry....");
+              this.serialSendCmd(message, retries--, timeout, callback);
+            }.bind(this), timeout);
+          } else {
+            callback(err.message);
+          }
+        }
+      }.bind(this));
 
-    //Serial Port Events
+    //Serial Port Open Event
     serialPort.on("open", function () {
-      //this.log("open");
+      //Send Data after 1700 milliseconds
+      setTimeout(function (mensa) {
+        //this.log("sending...");
+        for (var i = 0; i < mensa.length; i++) {
+          serialPort.write(new Buffer(mensa[i], 'ascii'), function (err, results) {
+            // this.log('Error: ' + err);
+          });
+        }
+        // Sending the terminate character
+        serialPort.write(new Buffer('\n', 'ascii'), function (err, results) {
+          // this.log('err ' + err);
+        });
+        //this.log("sent");
+
+        // Get data and close port after 100 milliseconds
+        setTimeout(function () {
+          //this.log("closing....");
+          serialPort.close(
+            function (err) {
+              if (err) {
+                //this.log('Serial Close Error:' + err.message);
+              }
+            }.bind(this));
+
+          var result = "KO,Bad Serial Data";
+          var arrData = datos.split('\n');
+          if (arrData[0].trim() == 'BOOT') {
+            if (arrData.length > 1) {
+              result = arrData[1].trim();
+            }
+          }
+          arrData = result.split(",");
+          if (arrData[0] == "OK") {
+            callback(null, arrData[1]);
+          } else {
+            callback(arrData[1]);
+          }
+        }.bind(this), 100);
+      }.bind(this), 1700, message);
     }.bind(this));;
+
+    //Serial Port Data Event
     serialPort.on('data', function (data) {
       datos += data;
     }.bind(this));;
+
+    //Serial Port Close Event
     serialPort.on('close', function () {
       //this.log("closed");
     }.bind(this));;
-
-    //Send Data after 1700 milliseconds
-    setTimeout(function (mensa) {
-      //this.log("sending...");
-      for (var i = 0; i < mensa.length; i++) {
-        serialPort.write(new Buffer(mensa[i], 'ascii'), function (err, results) {
-          // this.log('Error: ' + err);
-        });
-      }
-      // Sending the terminate character
-      serialPort.write(new Buffer('\n', 'ascii'), function (err, results) {
-        // this.log('err ' + err);
-      });
-      //this.log("sent");
-
-      // Get data and close port after 100 milliseconds
-      setTimeout(function () {
-        //this.log("closing....");
-        serialPort.close();
-
-        var result = "KO,Bad Serial Data";
-        var arrData = datos.split('\n');
-        if (arrData[0].trim() == 'BOOT') {
-          if (arrData.length > 1) {
-            result = arrData[1].trim();
-          }
-        }
-        arrData = result.split(",");
-        if (arrData[0] == "OK") {
-          callback(null, arrData[1]);
-        } else {
-          callback(arrData[1]);
-        }
-      }.bind(this), 100);
-    }.bind(this), 1700, message);
   },
   netSendCmd: function (message, callback) {
-    this.log("Network message:", message);
+    //this.log("Network message:", message);
 
     var datos = "";
     var client = new Net.Socket();
@@ -272,12 +291,12 @@ MitsubishiVACIRAccessory.prototype = {
     var msg = "S," + params.join(",");
     if (this.mode == "serial") {
       //Send serial data
-      this.serialSendCmd(msg, function (error, temperature) {
+      this.serialSendCmd(msg, 3, 1000, function (error, temperature) {
         if (error) {
           this.log("Serial command function failed:", error);
           callback(error);
         } else {
-          this.log("Serial command function succeeded");
+          //this.log("Serial command function succeeded");
           this.CurrentHeaterCoolerState = futureState;
           callback(null);
         }
@@ -290,7 +309,7 @@ MitsubishiVACIRAccessory.prototype = {
           this.log("Network command function failed:", error);
           callback(error);
         } else {
-          this.log("Network command function succeeded");
+          //this.log("Network command function succeeded");
           this.CurrentHeaterCoolerState = futureState;
           callback(null);
         }
@@ -353,7 +372,7 @@ MitsubishiVACIRAccessory.prototype = {
     var msg = "G";
     if (this.mode == "serial") {
       //Send serial data
-      this.serialSendCmd(msg, function (error, temperature) {
+      this.serialSendCmd(msg, 3, 1000, function (error, temperature) {
         if (error) {
           this.log("Serial command function failed:", error);
           callback(error);
