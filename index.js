@@ -1,6 +1,6 @@
 /*
 homebridge-mitsubishi-vac-ir
-Version 1.0.1
+Version 1.1.0
 
 Mitsubihishi VAC IR Remote plugin for homebridge: https://github.com/nfarina/homebridge
 Copyright (c) 2017 @Kounch
@@ -115,6 +115,8 @@ function MitsubishiVACIRAccessory(log, config) {
   //Characteristic.SwingMode.SWING_DISABLED;
   //Characteristic.SwingMode.SWING_ENABLED;
   this.SwingMode = Characteristic.SwingMode.SWING_DISABLED;
+  this.TargetHorizontalTiltAngle = 0;
+  this.CurrentHorizontalTiltAngle = 0;
 
   this.CoolingThresholdTemperature = 22.0;
   this.HeatingThresholdTemperature = 24.0;
@@ -123,6 +125,9 @@ function MitsubishiVACIRAccessory(log, config) {
   //Characteristic.TemperatureDisplayUnits.FAHRENHEIT;
   this.temperatureDisplayUnits = Characteristic.TemperatureDisplayUnits.CELSIUS;
 
+  //Characteristic.TargetFanState.MANUAL = 0;
+  //Characteristic.TargetFanState.AUTO = 1;
+  this.TargetFanState = Characteristic.TargetFanState.AUTO;
   this.RotationSpeed = 0;
 
   this.service = new Service.HeaterCooler(this.name);
@@ -156,12 +161,12 @@ MitsubishiVACIRAccessory.prototype = {
         //this.log("sending...");
         for (var i = 0; i < mensa.length; i++) {
           serialPort.write(new Buffer(mensa[i], 'ascii'), function (err, results) {
-            // this.log('Error: ' + err);
+            //this.log('Error: ' + err);
           });
         }
         // Sending the terminate character
         serialPort.write(new Buffer('\n', 'ascii'), function (err, results) {
-          // this.log('err ' + err);
+          //this.log('err ' + err);
         });
         //this.log("sent");
 
@@ -209,18 +214,18 @@ MitsubishiVACIRAccessory.prototype = {
     var client = new Net.Socket();
 
     //Connection
-    this.log("Connecting Host:", this.hostname);
+    //this.log("Connecting Host:", this.hostname);
     client.connect(80, this.hostname, function () {
-      this.log("Connected");
-      this.log("Mensaje:", message);
+      //this.log("Connected");
+      //this.log("Mensaje:", message);
       client.write(message);
-      this.log("Message sent: ", message);
+      //this.log("Message sent: ", message);
     }.bind(this));
 
     //Socket events
     client.on("data", function (data) {
       var answer = data.toString();
-      this.log("Network received:", answer.trim());
+      //this.log("Network received:", answer.trim());
       var arrData = answer.split(",");
       if (arrData[0] == "OK") {
         callback(null, arrData[1]);
@@ -233,15 +238,16 @@ MitsubishiVACIRAccessory.prototype = {
       callback("Network Error");
     }.bind(this));
     client.on("close", function (had_error) {
-      this.log("Network connection closed");
+      //this.log("Network connection closed");
     }.bind(this));
   },
   sendCmd: function (that, callback) {
     var params = ["0", "22", "0", "0", "1"];
 
-    //Default temperature and State
+    //Default temperature and States
     var temperature = 22.0;
     var futureState = Characteristic.CurrentHeaterCoolerState.IDLE;
+    var horizontalTiltAngle = 0;
 
     if (that.heatingThresholdTemperature) {
       temperature = that.heatingThresholdTemperature;
@@ -273,15 +279,22 @@ MitsubishiVACIRAccessory.prototype = {
     //ThresholdTemperature (celsius, int)
     params[1] = Math.round(temperature).toString();
     //Fan: 0-auto, 1,2,3,4,5-speed, 6-Silent)
-    params[2] = "0";
+    //RotationSpeed: 0-Silent, 20,40,60,80,100
+    params[2] = "6";
     if (that.RotationSpeed) {
-      params[2] = that.RotationSpeed.toString();
+      params[2] = (parseInt(that.RotationSpeed) / 20).toString();
+    }
+    if (that.TargetFanState == Characteristic.TargetFanState.AUTO) {
+      params[2] = 0;
     }
     //Vane:  0-auto, 1,2,3,4,5-angle, 6-moving)
-    params[3] = "0";
-    if (that.SwingMode == Characteristic.SwingMode.SWING_ENABLED) {
-      params[3] = "6";
+    if (that.TargetHorizontalTiltAngle) {
+      horizontalTiltAngle = parseInt(that.TargetHorizontalTiltAngle);
     }
+    if (that.SwingMode == Characteristic.SwingMode.SWING_ENABLED) {
+      horizontalTiltAngle = -54;
+    }
+    params[3] = (-horizontalTiltAngle / 9).toString();
     //Status: 0-off, 1-on
     params[4] = "1";
     if (that.Active == Characteristic.Active.INACTIVE) {
@@ -387,7 +400,7 @@ MitsubishiVACIRAccessory.prototype = {
       }.bind(this));
     } else if (this.mode == "network") {
       //Send data through network
-      this.log("Network beta!");
+      //this.log("Network beta!");
       this.netSendCmd(msg, function (error, temperature) {
         if (error) {
           this.log("Network command function failed:", error);
@@ -500,6 +513,53 @@ MitsubishiVACIRAccessory.prototype = {
       }.bind(this));
     }
   },
+  getTargetFanState: function (callback) {
+    this.log("getTargetFanState:", this.TargetFanState);
+    callback(null, this.TargetFanState);
+  },
+  setTargetFanState: function (value, callback) {
+    if (value === undefined) {
+      callback();
+    } else {
+      this.log("setTargetFanState from/to:", this.TargetFanState, value);
+      var that = this;
+      that.TargetFanState = value;
+      this.sendCmd(that, function (error, stdout, stderr) {
+        if (error) {
+          callback(error);
+        } else {
+          this.TargetFanState = value;
+          callback(null);
+        }
+      }.bind(this));
+    }
+  },
+  getTargetHorizontalTiltAngle: function (callback) {
+    this.log("getTargetHorizontalTiltAngle:", this.TargetHorizontalTiltAngle);
+    callback(null, this.TargetHorizontalTiltAngle);
+  },
+  setTargetHorizontalTiltAngle: function (value, callback) {
+    if (value === undefined) {
+      callback();
+    } else {
+      this.log("setTargetHorizontalTiltAngle from/to:", this.TargetHorizontalTiltAngle, value);
+      var that = this;
+      that.TargetHorizontalTiltAngle = value;
+      this.sendCmd(that, function (error, stdout, stderr) {
+        if (error) {
+          callback(error);
+        } else {
+          this.TargetHorizontalTiltAngle = value;
+          this.CurrentHorizontalTiltAngle = value;
+          callback(null);
+        }
+      }.bind(this));
+    }
+  },
+  getCurrentHorizontalTiltAngle: function (callback) {
+    this.log("getTargetHorizontalTiltAngle:", this.CurrentHorizontalTiltAngle);
+    callback(null, this.CurrentHorizontalTiltAngle);
+  },
   getName: function (callback) {
     this.log("getName :", this.name);
     callback(null, this.name);
@@ -589,9 +649,37 @@ MitsubishiVACIRAccessory.prototype = {
     this.service.getCharacteristic(Characteristic.RotationSpeed)
       .setProps({
         minValue: 0,
-        maxValue: 6,
-        minStep: 1
+        maxValue: 100,
+        minStep: 20
       });
+
+    //Extra Characteristics
+    this.service.addOptionalCharacteristic(Characteristic.TargetFanState);
+    this.service
+      .getCharacteristic(Characteristic.TargetFanState)
+      .on('get', this.getTargetFanState.bind(this))
+      .on('set', this.setTargetFanState.bind(this));
+
+    this.service.addOptionalCharacteristic(Characteristic.SlatType);
+    this.service.setCharacteristic(Characteristic.SlatType, Characteristic.SlatType.HORIZONTAL);
+
+    this.service.addOptionalCharacteristic(Characteristic.TargetHorizontalTiltAngle);
+    this.service
+      .getCharacteristic(Characteristic.TargetHorizontalTiltAngle)
+      .on('get', this.getTargetHorizontalTiltAngle.bind(this))
+      .on('set', this.setTargetHorizontalTiltAngle.bind(this));
+
+    this.service.getCharacteristic(Characteristic.TargetHorizontalTiltAngle)
+      .setProps({
+        maxValue: 0,
+        minValue: -45,
+        minStep: 9
+      });
+
+    this.service.addOptionalCharacteristic(Characteristic.CurrentHorizontalTiltAngle);
+    this.service
+      .getCharacteristic(Characteristic.CurrentHorizontalTiltAngle)
+      .on('get', this.getCurrentHorizontalTiltAngle.bind(this));
 
     return [informationService, this.service];
   }
