@@ -57,6 +57,7 @@ This step is not required, unless you want to use the network access mode.
             "name": "Mitsubishi VAC",
             "mode": "serial",
             "portname": "/dev/ttyACM0",
+            "portspeed": 19200,
             "manufacturer": "Mitsubishi",
             "model": "Infrared Remote",
             "serialnumber": "KM05",
@@ -111,6 +112,7 @@ It is also possible to calibrate the temperature values adding one or two refere
 | name               | Name of your device.                                  | No       |
 | mode               | Connection mode, must be `serial` or `network`        | No       |
 | portname           | Name of the serial port connected to Arduino          | No       |
+| portspeed          | Speed of the serial port connected to Arduino         | No       |
 | hostname           | Hostname or IP Address of Arduino Network Interface   | No       |
 | manufacturer       | Manufacturer of your device.                          | No       |
 | model              | Model of your device.                                 | No       |
@@ -177,6 +179,7 @@ Este paso no es necesario, a no ser que se desee utilizar el modo de acceso vía
             "name": "Aire de la Sala",
             "mode": "serial",
             "portname": "/dev/ttyACM0",
+            "portspeed": 19200,
             "manufacturer": "Mitsubishi",
             "model": "Mando infrarrojo",
             "serialnumber": "KM05",
@@ -231,6 +234,7 @@ También es posible realizar una calibración de los valores de temperatura del 
 | name               | Nombre del dispositivo                                | No        |
 | mode               | Modo de conexión, debe ser `serial` o `network`       | No        |
 | portname           | Nombre del puerto serie conectado a Arduino           | No        |
+| portspeed          | Velocidad del puerto serie conectado a Arduino        | No        |
 | hostname           | Nombre de host o dirección IP de Arduino              | No        |
 | manufacturer       | Fabricante del dispositivo                            | No        |
 | model              | Modelo del dispositivo                                | No        |

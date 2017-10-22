@@ -1,6 +1,6 @@
 /*
 homebridge-mitsubishi-vac-ir
-Version 1.1.0
+Version 1.1.1
 
 Mitsubihishi VAC IR Remote plugin for homebridge: https://github.com/nfarina/homebridge
 Copyright (c) 2017 @Kounch
@@ -47,6 +47,7 @@ function MitsubishiVACIRAccessory(log, config) {
   this.mode = config.mode || "serial";
   if (this.mode == "serial") {
     this.portName = config.portname || "/dev/ttyACM0";
+    this.portSpeed = config.portspeed || 19200;
   } else if (this.mode == "network") {
     this.log("Network beta!");
     this.hostname = config.hostname || "arduino_mitsubishi.local";
@@ -139,7 +140,7 @@ MitsubishiVACIRAccessory.prototype = {
 
     var datos = "";
     var serialPort = new SerialPort(this.portName, {
-      baudrate: 9600
+      baudrate: this.portSpeed
     },
       function (err) {
         if (err) {
