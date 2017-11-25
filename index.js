@@ -223,7 +223,6 @@ MitsubishiVACIRAccessory.prototype = {
       //this.log("Network received:", answer.trim());
       var arrData = answer.split(",");
       if (arrData[0] == "OK") {
-        client.end();
         callback(null, arrData.slice(1));
       } else {
         callback(arrData.slice(1));
