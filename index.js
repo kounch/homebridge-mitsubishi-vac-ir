@@ -1,6 +1,6 @@
 /*
 homebridge-mitsubishi-vac-ir
-Version 1.2.1
+Version 1.2.2
 
 Mitsubihishi VAC IR Remote plugin for homebridge: https://github.com/nfarina/homebridge
 Copyright (c) 2017 @Kounch
