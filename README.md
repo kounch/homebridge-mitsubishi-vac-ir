@@ -85,7 +85,8 @@ This step is not required, unless you want to use the network access mode.
                 {
                     "sensor_value": 24.0,
                     "real_value": 26.0
-                }
+                },
+            "humidity": false
             ]
         }
     ],
@@ -118,6 +119,7 @@ It is also possible to calibrate the temperature values adding one or two refere
 | model              | Model of your device.                                 | No       |
 | serialnumber       | Serial number of your device.                         | No       |
 | references         | List of "sensor_value" and "real_value" references    | No       |
+| humidity           | If true, current humidity is obtained too             | No       |
 
 
 
@@ -207,7 +209,8 @@ Este paso no es necesario, a no ser que se desee utilizar el modo de acceso vía
                 {
                     "sensor_value": 24.0,
                     "real_value": 26.0
-                }
+                },
+            "humidity": false
             ]
         }
     ],
@@ -240,6 +243,7 @@ También es posible realizar una calibración de los valores de temperatura del 
 | model              | Modelo del dispositivo                                | No        |
 | serialnumber       | Número de seri del dispositivo                        | No        |
 | references         | Lista de referencias "sensor_value" y "real_value"    | No        |
+| humidity           | Si es true, se intentará obtener datos de humedad     | No       |
 
 
 \*Cambiar el nombre `name` en `config.json` creará un nuevo dispositivo en vez de renombrar el existente en Homekit. Se recomienda que sólo se cambie el nombre del accesorio usando una App de HomeKit.

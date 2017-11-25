@@ -1,6 +1,6 @@
 /*
 homebridge-mitsubishi-vac-ir
-Version 1.1.1
+Version 1.2.0
 
 Mitsubihishi VAC IR Remote plugin for homebridge: https://github.com/nfarina/homebridge
 Copyright (c) 2017 @Kounch
@@ -85,6 +85,7 @@ function MitsubishiVACIRAccessory(log, config) {
   this.manufacturer = config.manufacturer || "Mitsubishi";
   this.model = config.model || "Infrared Remote";
   this.serialnumber = config.serialnumber || "KM05";
+  this.humidity = config.humidity || false;
 
   // Required Characteristics
 
@@ -130,6 +131,10 @@ function MitsubishiVACIRAccessory(log, config) {
   //Characteristic.TargetFanState.AUTO = 1;
   this.TargetFanState = Characteristic.TargetFanState.AUTO;
   this.RotationSpeed = 0;
+
+  if (this.humidity) {
+    this.CurrentRelativeHumidity = 50;
+  }
 
   this.service = new Service.HeaterCooler(this.name);
 }
@@ -181,18 +186,18 @@ MitsubishiVACIRAccessory.prototype = {
               }
             }.bind(this));
 
-          var result = "KO,Bad Serial Data";
+          var result = "KO,Bad Serial Data,";
           var arrData = datos.split('\n');
           if (arrData[0].trim() == 'BOOT') {
             if (arrData.length > 1) {
-              result = arrData[1].trim();
+              result = arrData.slice(1).join(",");
             }
           }
           arrData = result.split(",");
           if (arrData[0] == "OK") {
-            callback(null, arrData[1]);
+            callback(null, arrData.slice(1));
           } else {
-            callback(arrData[1]);
+            callback(arrData.slice(1));
           }
         }.bind(this), 100);
       }.bind(this), 1700, message);
@@ -213,15 +218,7 @@ MitsubishiVACIRAccessory.prototype = {
 
     var datos = "";
     var client = new Net.Socket();
-
-    //Connection
-    //this.log("Connecting Host:", this.hostname);
-    client.connect(80, this.hostname, function () {
-      //this.log("Connected");
-      //this.log("Mensaje:", message);
-      client.write(message);
-      //this.log("Message sent: ", message);
-    }.bind(this));
+    client.setTimeout(2000);
 
     //Socket events
     client.on("data", function (data) {
@@ -229,9 +226,9 @@ MitsubishiVACIRAccessory.prototype = {
       //this.log("Network received:", answer.trim());
       var arrData = answer.split(",");
       if (arrData[0] == "OK") {
-        callback(null, arrData[1]);
+        callback(null, arrData.slice(1));
       } else {
-        callback(arrData[1]);
+        callback(arrData.slice(1));
       }
     }.bind(this));
     client.on("error", function () {
@@ -240,6 +237,20 @@ MitsubishiVACIRAccessory.prototype = {
     }.bind(this));
     client.on("close", function (had_error) {
       //this.log("Network connection closed");
+    }.bind(this));
+    client.on("timeout", function () {
+      this.log("Network Timeout Error");
+      //callback("Network Timeout Error");
+      client.end();
+    }.bind(this));
+
+    //Connection
+    //this.log("Connecting Host:", this.hostname);
+    client.connect(80, this.hostname, function () {
+      //this.log("Connected");
+      //this.log("Mensaje:", message);
+      client.write(message);
+      //this.log("Message sent: ", message);
     }.bind(this));
   },
   sendCmd: function (that, callback) {
@@ -305,7 +316,7 @@ MitsubishiVACIRAccessory.prototype = {
     var msg = "S," + params.join(",");
     if (this.mode == "serial") {
       //Send serial data
-      this.serialSendCmd(msg, 3, 1000, function (error, temperature) {
+      this.serialSendCmd(msg, 3, 1000, function (error, thData) {
         if (error) {
           this.log("Serial command function failed:", error);
           callback(error);
@@ -317,8 +328,7 @@ MitsubishiVACIRAccessory.prototype = {
       }.bind(this));
     } else if (this.mode == "network") {
       //Send data through network
-      this.log("Network beta!");
-      this.netSendCmd(msg, function (error, temperature) {
+      this.netSendCmd(msg, function (error, thData) {
         if (error) {
           this.log("Network command function failed:", error);
           callback(error);
@@ -386,14 +396,14 @@ MitsubishiVACIRAccessory.prototype = {
     var msg = "G";
     if (this.mode == "serial") {
       //Send serial data
-      this.serialSendCmd(msg, 3, 1000, function (error, temperature) {
+      this.serialSendCmd(msg, 3, 1000, function (error, thData) {
         if (error) {
           this.log("Serial command function failed:", error);
           callback(error);
         } else {
           //this.log("Serial command function succeeded");
-          this.log("Sensor:", Math.round(temperature * 100) / 100);
-          temperature = (temperature * this.slope) + this.intercept;
+          this.log("Sensor:", Math.round(thData[0] * 100) / 100);
+          temperature = (thData[0] * this.slope) + this.intercept;
           this.CurrentTemperature = Math.round(temperature * 100) / 100;
           this.log("Temperature:", this.CurrentTemperature)
           callback(null, this.CurrentTemperature);
@@ -402,14 +412,14 @@ MitsubishiVACIRAccessory.prototype = {
     } else if (this.mode == "network") {
       //Send data through network
       //this.log("Network beta!");
-      this.netSendCmd(msg, function (error, temperature) {
+      this.netSendCmd(msg, function (error, thData) {
         if (error) {
           this.log("Network command function failed:", error);
           callback(error);
         } else {
           //this.log("Network command function succeeded");
-          this.log("Sensor:", Math.round(temperature * 100) / 100);
-          temperature = (temperature * this.slope) + this.intercept;
+          this.log("Sensor:", Math.round(thData[0] * 100) / 100);
+          temperature = (thData[0] * this.slope) + this.intercept;
           this.CurrentTemperature = Math.round(temperature * 100) / 100;
           this.log("Temperature:", this.CurrentTemperature)
           callback(null, this.CurrentTemperature);
@@ -561,6 +571,40 @@ MitsubishiVACIRAccessory.prototype = {
     this.log("getTargetHorizontalTiltAngle:", this.CurrentHorizontalTiltAngle);
     callback(null, this.CurrentHorizontalTiltAngle);
   },
+  getCurrentRelativeHumidity: function (callback) {
+    this.log("getCurrentRelativeHumidity");
+    var msg = "G";
+    if (this.mode == "serial") {
+      //Send serial data
+      this.serialSendCmd(msg, 3, 1000, function (error, thData) {
+        if (error) {
+          this.log("Serial command function failed:", error);
+          callback(error);
+        } else {
+          //this.log("Serial command function succeeded");
+          this.CurrentRelativeHumidity = Math.round(thData[1].trim() * 100) / 100;
+          this.log("Humidity:", this.CurrentRelativeHumidity)
+          callback(null, this.CurrentRelativeHumidity);
+        }
+      }.bind(this));
+    } else if (this.mode == "network") {
+      //Send data through network
+      this.netSendCmd(msg, function (error, thData) {
+        if (error) {
+          //this.log("Network command function failed:", error);
+          callback(error);
+        } else {
+          //this.log("Network command function succeeded");
+          this.CurrentRelativeHumidity = Math.round(thData[1].trim() * 100) / 100;
+          this.log("Humidity:", this.CurrentRelativeHumidity)
+          callback(null, this.CurrentRelativeHumidity);
+        }
+      }.bind(this));
+    } else {
+      this.log("Unknown mode on SendCmd!")
+      callback("Unknown mode");
+    }
+  },
   getName: function (callback) {
     this.log("getName :", this.name);
     callback(null, this.name);
@@ -681,6 +725,13 @@ MitsubishiVACIRAccessory.prototype = {
     this.service
       .getCharacteristic(Characteristic.CurrentHorizontalTiltAngle)
       .on('get', this.getCurrentHorizontalTiltAngle.bind(this));
+
+    if (this.humidity) {
+      this.service.addOptionalCharacteristic(Characteristic.CurrentRelativeHumidity);
+      this.service
+        .getCharacteristic(Characteristic.CurrentRelativeHumidity)
+        .on('get', this.getCurrentRelativeHumidity.bind(this));
+    }
 
     return [informationService, this.service];
   }
