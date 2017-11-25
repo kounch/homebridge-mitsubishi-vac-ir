@@ -1,6 +1,6 @@
 /*
 homebridge-mitsubishi-vac-ir
-Version 1.2.0
+Version 1.2.1
 
 Mitsubihishi VAC IR Remote plugin for homebridge: https://github.com/nfarina/homebridge
 Copyright (c) 2017 @Kounch
@@ -44,12 +44,12 @@ module.exports = function (homebridge) {
 
 function MitsubishiVACIRAccessory(log, config) {
   this.log = log;
+  this.lastCommandDate = new Date();
   this.mode = config.mode || "serial";
   if (this.mode == "serial") {
     this.portName = config.portname || "/dev/ttyACM0";
     this.portSpeed = config.portspeed || 19200;
   } else if (this.mode == "network") {
-    this.log("Network beta!");
     this.hostname = config.hostname || "arduino_mitsubishi.local";
   } else {
     this.log("Unknown mode");
@@ -141,8 +141,6 @@ function MitsubishiVACIRAccessory(log, config) {
 
 MitsubishiVACIRAccessory.prototype = {
   serialSendCmd: function (message, retries, timeout, callback) {
-    //this.log("Serial port message:", message);
-
     var datos = "";
     var serialPort = new SerialPort(this.portName, {
       baudrate: this.portSpeed
@@ -215,10 +213,9 @@ MitsubishiVACIRAccessory.prototype = {
   },
   netSendCmd: function (message, callback) {
     //this.log("Network message:", message);
-
     var datos = "";
     var client = new Net.Socket();
-    client.setTimeout(2000);
+    client.setTimeout(3000);
 
     //Socket events
     client.on("data", function (data) {
@@ -226,6 +223,7 @@ MitsubishiVACIRAccessory.prototype = {
       //this.log("Network received:", answer.trim());
       var arrData = answer.split(",");
       if (arrData[0] == "OK") {
+        client.end();
         callback(null, arrData.slice(1));
       } else {
         callback(arrData.slice(1));
@@ -239,19 +237,58 @@ MitsubishiVACIRAccessory.prototype = {
       //this.log("Network connection closed");
     }.bind(this));
     client.on("timeout", function () {
-      this.log("Network Timeout Error");
-      //callback("Network Timeout Error");
+      //this.log("Network Timeout");
       client.end();
+      callback("Network Timeout");
     }.bind(this));
 
     //Connection
     //this.log("Connecting Host:", this.hostname);
     client.connect(80, this.hostname, function () {
       //this.log("Connected");
-      //this.log("Mensaje:", message);
       client.write(message);
-      //this.log("Message sent: ", message);
     }.bind(this));
+  },
+  delayedSendCmd: function (message, callback) {
+    var currentDate = new Date();
+    if ((currentDate - this.lastCommandDate) > 2500) {
+      //this.log("Adelante!!!!",this.lastCommandDate, currentDate);
+      this.lastCommandDate = currentDate;
+      if (this.mode == "serial") {
+        //Send serial data
+        this.serialSendCmd(message, 3, 1000, function (error, thData) {
+          if (error) {
+            this.log("Serial command function failed:", error);
+            callback(error);
+          } else {
+            //this.log("Serial command function succeeded");
+            callback(null);
+          }
+        }.bind(this));
+      } else if (this.mode == "network") {
+        //Send data through network
+        this.netSendCmd(message, function (error, thData) {
+          if (error) {
+            this.log("Network command function failed:", error);
+            callback(error);
+          } else {
+            //this.log("Network command function succeeded");
+            callback(null);
+          }
+        }.bind(this));
+      } else {
+        this.log("Unknown mode on SendCmd!")
+        callback("Unknown mode");
+      }
+    } else {
+      // Try again after 3000 milliseconds
+      //this.log("delaying...." + message);
+      setTimeout(function () {
+        this.delayedSendCmd(message, function (error) {
+          callback(error);
+        }.bind(this));
+      }.bind(this), 3000);
+    }
   },
   sendCmd: function (that, callback) {
     var params = ["0", "22", "0", "0", "1"];
@@ -314,34 +351,14 @@ MitsubishiVACIRAccessory.prototype = {
       futureState = Characteristic.CurrentHeaterCoolerState.INACTIVE;
     }
     var msg = "S," + params.join(",");
-    if (this.mode == "serial") {
-      //Send serial data
-      this.serialSendCmd(msg, 3, 1000, function (error, thData) {
-        if (error) {
-          this.log("Serial command function failed:", error);
-          callback(error);
-        } else {
-          //this.log("Serial command function succeeded");
-          this.CurrentHeaterCoolerState = futureState;
-          callback(null);
-        }
-      }.bind(this));
-    } else if (this.mode == "network") {
-      //Send data through network
-      this.netSendCmd(msg, function (error, thData) {
-        if (error) {
-          this.log("Network command function failed:", error);
-          callback(error);
-        } else {
-          //this.log("Network command function succeeded");
-          this.CurrentHeaterCoolerState = futureState;
-          callback(null);
-        }
-      }.bind(this));
-    } else {
-      this.log("Unknown mode on SendCmd!")
-      callback("Unknown mode");
-    }
+    this.delayedSendCmd(msg, function (error) {
+      if (error) {
+        callback(error);
+      } else {
+        this.CurrentHeaterCoolerState = futureState;
+        callback(null);
+      }
+    }.bind(this));
   },
   //Start
   identify: function (callback) {
@@ -391,44 +408,58 @@ MitsubishiVACIRAccessory.prototype = {
       }.bind(this));
     }
   },
+  getCurrentAmbient: function (callback) {
+    //this.log("getCurrentAmbient");
+    var currentDate = new Date();
+    if ((currentDate - this.lastCommandDate) > 2500) {
+      this.lastCommandDate = currentDate;
+      var msg = "G";
+      if (this.mode == "serial") {
+        //Send serial data
+        this.serialSendCmd(msg, 3, 1000, function (error, thData) {
+          if (error) {
+            this.log("Serial command function failed:", error);
+            callback(error);
+          } else {
+            //this.log("Serial command function succeeded");
+            callback(null, thData);
+          }
+        }.bind(this));
+      } else if (this.mode == "network") {
+        //Send data through network
+        this.netSendCmd(msg, function (error, thData) {
+          if (error) {
+            this.log("Network command function failed:", error);
+            callback(error);
+          } else {
+            //this.log("Network command function succeeded");
+            callback(null, thData);
+          }
+        }.bind(this));
+      } else {
+        this.log("Unknown mode on SendCmd!")
+        callback("Unknown mode");
+      }
+    } else {
+      this.log("Too soon! Using cached data");
+      callback(null, [this.CurrentTemperature.toString(), this.CurrentRelativeHumidity.toString()]);
+    }
+  },
   getCurrentTemperature: function (callback) {
     this.log("getCurrentTemperature");
-    var msg = "G";
-    if (this.mode == "serial") {
-      //Send serial data
-      this.serialSendCmd(msg, 3, 1000, function (error, thData) {
-        if (error) {
-          this.log("Serial command function failed:", error);
-          callback(error);
-        } else {
-          //this.log("Serial command function succeeded");
-          this.log("Sensor:", Math.round(thData[0] * 100) / 100);
-          temperature = (thData[0] * this.slope) + this.intercept;
-          this.CurrentTemperature = Math.round(temperature * 100) / 100;
-          this.log("Temperature:", this.CurrentTemperature)
-          callback(null, this.CurrentTemperature);
-        }
-      }.bind(this));
-    } else if (this.mode == "network") {
-      //Send data through network
-      //this.log("Network beta!");
-      this.netSendCmd(msg, function (error, thData) {
-        if (error) {
-          this.log("Network command function failed:", error);
-          callback(error);
-        } else {
-          //this.log("Network command function succeeded");
-          this.log("Sensor:", Math.round(thData[0] * 100) / 100);
-          temperature = (thData[0] * this.slope) + this.intercept;
-          this.CurrentTemperature = Math.round(temperature * 100) / 100;
-          this.log("Temperature:", this.CurrentTemperature)
-          callback(null, this.CurrentTemperature);
-        }
-      }.bind(this));
-    } else {
-      this.log("Unknown mode on SendCmd!")
-      callback("Unknown mode");
-    }
+    this.getCurrentAmbient(function (error, thData) {
+      if (error) {
+        this.log("Command function failed:", error);
+        callback(error);
+      } else {
+        //this.log("Command function succeeded");
+        this.log("Sensor:", Math.round(thData[0].trim() * 100) / 100);
+        temperature = (thData[0] * this.slope) + this.intercept;
+        this.CurrentTemperature = Math.round(temperature * 100) / 100;
+        this.log("Temperature:", this.CurrentTemperature)
+        callback(null, this.CurrentTemperature);
+      }
+    }.bind(this));
   },
   // Optional
   getSwingMode: function (callback) {
@@ -573,37 +604,17 @@ MitsubishiVACIRAccessory.prototype = {
   },
   getCurrentRelativeHumidity: function (callback) {
     this.log("getCurrentRelativeHumidity");
-    var msg = "G";
-    if (this.mode == "serial") {
-      //Send serial data
-      this.serialSendCmd(msg, 3, 1000, function (error, thData) {
-        if (error) {
-          this.log("Serial command function failed:", error);
-          callback(error);
-        } else {
-          //this.log("Serial command function succeeded");
-          this.CurrentRelativeHumidity = Math.round(thData[1].trim() * 100) / 100;
-          this.log("Humidity:", this.CurrentRelativeHumidity)
-          callback(null, this.CurrentRelativeHumidity);
-        }
-      }.bind(this));
-    } else if (this.mode == "network") {
-      //Send data through network
-      this.netSendCmd(msg, function (error, thData) {
-        if (error) {
-          //this.log("Network command function failed:", error);
-          callback(error);
-        } else {
-          //this.log("Network command function succeeded");
-          this.CurrentRelativeHumidity = Math.round(thData[1].trim() * 100) / 100;
-          this.log("Humidity:", this.CurrentRelativeHumidity)
-          callback(null, this.CurrentRelativeHumidity);
-        }
-      }.bind(this));
-    } else {
-      this.log("Unknown mode on SendCmd!")
-      callback("Unknown mode");
-    }
+    this.getCurrentAmbient(function (error, thData) {
+      if (error) {
+        this.log("Command function failed:", error);
+        callback(error);
+      } else {
+        //this.log("Command function succeeded");
+        this.CurrentRelativeHumidity = Math.round(thData[1].trim() * 100) / 100;
+        this.log("Humidity:", this.CurrentRelativeHumidity)
+        callback(null, this.CurrentRelativeHumidity);
+      }
+    }.bind(this));
   },
   getName: function (callback) {
     this.log("getName :", this.name);
