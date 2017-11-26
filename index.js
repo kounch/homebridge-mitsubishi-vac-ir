@@ -1,6 +1,6 @@
 /*
 homebridge-mitsubishi-vac-ir
-Version 1.2.2
+Version 1.3.0
 
 Mitsubihishi VAC IR Remote plugin for homebridge: https://github.com/nfarina/homebridge
 Copyright (c) 2017 @Kounch
@@ -229,16 +229,15 @@ MitsubishiVACIRAccessory.prototype = {
       }
     }.bind(this));
     client.on("error", function () {
-      this.log("Network Error");
+      //this.log("Network Error");
       callback("Network Error");
     }.bind(this));
     client.on("close", function (had_error) {
       //this.log("Network connection closed");
     }.bind(this));
     client.on("timeout", function () {
-      //this.log("Network Timeout");
+      this.log("Network Timeout");
       client.end();
-      callback("Network Timeout");
     }.bind(this));
 
     //Connection
@@ -249,9 +248,10 @@ MitsubishiVACIRAccessory.prototype = {
     }.bind(this));
   },
   delayedSendCmd: function (message, callback) {
+    //this.log("Message:",message);
     var currentDate = new Date();
-    if ((currentDate - this.lastCommandDate) > 2500) {
-      //this.log("Adelante!!!!",this.lastCommandDate, currentDate);
+    if ((currentDate - this.lastCommandDate) > 3000) {
+      //this.log("Executing...",this.lastCommandDate, currentDate);
       this.lastCommandDate = currentDate;
       if (this.mode == "serial") {
         //Send serial data
@@ -261,7 +261,7 @@ MitsubishiVACIRAccessory.prototype = {
             callback(error);
           } else {
             //this.log("Serial command function succeeded");
-            callback(null);
+            callback(null, thData);
           }
         }.bind(this));
       } else if (this.mode == "network") {
@@ -272,7 +272,7 @@ MitsubishiVACIRAccessory.prototype = {
             callback(error);
           } else {
             //this.log("Network command function succeeded");
-            callback(null);
+            callback(null, thData);
           }
         }.bind(this));
       } else {
@@ -281,10 +281,14 @@ MitsubishiVACIRAccessory.prototype = {
       }
     } else {
       // Try again after 3000 milliseconds
-      //this.log("delaying...." + message);
+      //this.log("delaying....");
       setTimeout(function () {
-        this.delayedSendCmd(message, function (error) {
-          callback(error);
+        this.delayedSendCmd(message, function (error, thData) {
+          if (error) {
+            callback(error);
+          } else {
+            callback(null, thData);
+          }
         }.bind(this));
       }.bind(this), 3000);
     }
@@ -350,7 +354,7 @@ MitsubishiVACIRAccessory.prototype = {
       futureState = Characteristic.CurrentHeaterCoolerState.INACTIVE;
     }
     var msg = "S," + params.join(",");
-    this.delayedSendCmd(msg, function (error) {
+    this.delayedSendCmd(msg, function (error, thData) {
       if (error) {
         callback(error);
       } else {
@@ -407,48 +411,12 @@ MitsubishiVACIRAccessory.prototype = {
       }.bind(this));
     }
   },
-  getCurrentAmbient: function (callback) {
-    //this.log("getCurrentAmbient");
-    var currentDate = new Date();
-    if ((currentDate - this.lastCommandDate) > 2500) {
-      this.lastCommandDate = currentDate;
-      var msg = "G";
-      if (this.mode == "serial") {
-        //Send serial data
-        this.serialSendCmd(msg, 3, 1000, function (error, thData) {
-          if (error) {
-            this.log("Serial command function failed:", error);
-            callback(error);
-          } else {
-            //this.log("Serial command function succeeded");
-            callback(null, thData);
-          }
-        }.bind(this));
-      } else if (this.mode == "network") {
-        //Send data through network
-        this.netSendCmd(msg, function (error, thData) {
-          if (error) {
-            this.log("Network command function failed:", error);
-            callback(error);
-          } else {
-            //this.log("Network command function succeeded");
-            callback(null, thData);
-          }
-        }.bind(this));
-      } else {
-        this.log("Unknown mode on SendCmd!")
-        callback("Unknown mode");
-      }
-    } else {
-      this.log("Too soon! Using cached data");
-      callback(null, [this.CurrentTemperature.toString(), this.CurrentRelativeHumidity.toString()]);
-    }
-  },
   getCurrentTemperature: function (callback) {
     this.log("getCurrentTemperature");
-    this.getCurrentAmbient(function (error, thData) {
+    msg = "G";
+    this.delayedSendCmd(msg, function (error, thData) {
       if (error) {
-        this.log("Command function failed:", error);
+        //this.log("Command function failed:", error);
         callback(error);
       } else {
         //this.log("Command function succeeded");
@@ -603,9 +571,10 @@ MitsubishiVACIRAccessory.prototype = {
   },
   getCurrentRelativeHumidity: function (callback) {
     this.log("getCurrentRelativeHumidity");
-    this.getCurrentAmbient(function (error, thData) {
+    msg = "G";
+    this.delayedSendCmd(msg, function (error, thData) {
       if (error) {
-        this.log("Command function failed:", error);
+        //this.log("Command function failed:", error);
         callback(error);
       } else {
         //this.log("Command function succeeded");
