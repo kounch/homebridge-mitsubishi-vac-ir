@@ -1,6 +1,6 @@
 /*
 homebridge-mitsubishi-vac-ir
-Version 1.3.0
+Version 1.3.1
 
 Mitsubihishi VAC IR Remote plugin for homebridge: https://github.com/nfarina/homebridge
 Copyright (c) 2017 @Kounch
@@ -45,6 +45,7 @@ module.exports = function (homebridge) {
 function MitsubishiVACIRAccessory(log, config) {
   this.log = log;
   this.lastCommandDate = new Date();
+  this.timeout = false;
   this.mode = config.mode || "serial";
   if (this.mode == "serial") {
     this.portName = config.portname || "/dev/ttyACM0";
@@ -149,7 +150,6 @@ MitsubishiVACIRAccessory.prototype = {
         if (err) {
           if (retries) {
             setTimeout(function () {
-              //this.log("Retry....");
               this.serialSendCmd(message, retries--, timeout, callback);
             }.bind(this), timeout);
           } else {
@@ -162,21 +162,17 @@ MitsubishiVACIRAccessory.prototype = {
     serialPort.on("open", function () {
       //Send Data after 1700 milliseconds
       setTimeout(function (mensa) {
-        //this.log("sending...");
         for (var i = 0; i < mensa.length; i++) {
           serialPort.write(new Buffer(mensa[i], 'ascii'), function (err, results) {
-            //this.log('Error: ' + err);
           });
         }
         // Sending the terminate character
         serialPort.write(new Buffer('\n', 'ascii'), function (err, results) {
-          //this.log('err ' + err);
+          //this.log('Serial Write Error: ' + err.message);
         });
-        //this.log("sent");
 
         // Get data and close port after 100 milliseconds
         setTimeout(function () {
-          //this.log("closing....");
           serialPort.close(
             function (err) {
               if (err) {
@@ -208,80 +204,73 @@ MitsubishiVACIRAccessory.prototype = {
 
     //Serial Port Close Event
     serialPort.on('close', function () {
-      //this.log("closed");
+      //this.log("Serial Port closed");
     }.bind(this));;
   },
   netSendCmd: function (message, callback) {
-    //this.log("Network message:", message);
-    var datos = "";
     var client = new Net.Socket();
     client.setTimeout(3000);
 
     //Socket events
     client.on("data", function (data) {
       var answer = data.toString();
-      //this.log("Network received:", answer.trim());
       var arrData = answer.split(",");
       if (arrData[0] == "OK") {
         callback(null, arrData.slice(1));
       } else {
-        callback(arrData.slice(1));
+        callback(new Error(arrData.slice(1)));
       }
     }.bind(this));
-    client.on("error", function () {
-      //this.log("Network Error");
-      callback("Network Error");
+    client.on("error", function (network_error) {
+      if (this.timeout) {
+        this.timeout = false;
+      } else {
+        callback(network_error);
+      }
     }.bind(this));
     client.on("close", function (had_error) {
       //this.log("Network connection closed");
     }.bind(this));
     client.on("timeout", function () {
-      this.log("Network Timeout");
+      this.timeout = true;
       client.end();
+      callback(new Error("Network Timeout error"));
     }.bind(this));
 
     //Connection
-    //this.log("Connecting Host:", this.hostname);
     client.connect(80, this.hostname, function () {
-      //this.log("Connected");
       client.write(message);
     }.bind(this));
   },
   delayedSendCmd: function (message, callback) {
-    //this.log("Message:",message);
     var currentDate = new Date();
     if ((currentDate - this.lastCommandDate) > 3000) {
-      //this.log("Executing...",this.lastCommandDate, currentDate);
       this.lastCommandDate = currentDate;
       if (this.mode == "serial") {
         //Send serial data
-        this.serialSendCmd(message, 3, 1000, function (error, thData) {
-          if (error) {
-            this.log("Serial command function failed:", error);
-            callback(error);
+        this.serialSendCmd(message, 3, 1000, function (serial_error, thData) {
+          if (serial_error) {
+            this.log("Serial command function failed:", serial_error.message);
+            callback(serial_error);
           } else {
-            //this.log("Serial command function succeeded");
             callback(null, thData);
           }
         }.bind(this));
       } else if (this.mode == "network") {
         //Send data through network
-        this.netSendCmd(message, function (error, thData) {
-          if (error) {
-            this.log("Network command function failed:", error);
-            callback(error);
+        this.netSendCmd(message, function (network_error, thData) {
+          if (network_error) {
+            this.log("Network command function failed:", network_error.message);
+            callback(network_error);
           } else {
-            //this.log("Network command function succeeded");
             callback(null, thData);
           }
         }.bind(this));
       } else {
-        this.log("Unknown mode on SendCmd!")
-        callback("Unknown mode");
+        callback(new Error("Unknown mode on SendCmd"));
       }
     } else {
       // Try again after 3000 milliseconds
-      //this.log("delaying....");
       setTimeout(function () {
         this.delayedSendCmd(message, function (error, thData) {
           if (error) {
@@ -416,10 +405,8 @@ MitsubishiVACIRAccessory.prototype = {
     msg = "G";
     this.delayedSendCmd(msg, function (error, thData) {
       if (error) {
-        //this.log("Command function failed:", error);
         callback(error);
       } else {
-        //this.log("Command function succeeded");
         this.log("Sensor:", Math.round(thData[0].trim() * 100) / 100);
         temperature = (thData[0] * this.slope) + this.intercept;
         this.CurrentTemperature = Math.round(temperature * 100) / 100;
@@ -574,10 +561,8 @@ MitsubishiVACIRAccessory.prototype = {
     msg = "G";
     this.delayedSendCmd(msg, function (error, thData) {
       if (error) {
-        //this.log("Command function failed:", error);
         callback(error);
       } else {
-        //this.log("Command function succeeded");
         this.CurrentRelativeHumidity = Math.round(thData[1].trim() * 100) / 100;
         this.log("Humidity:", this.CurrentRelativeHumidity)
         callback(null, this.CurrentRelativeHumidity);
