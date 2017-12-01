@@ -22,9 +22,9 @@ Take note thas, as of iOS 10, Apple's Home App does not support yet Heater/Coole
 
 
 ### How this plugin works
-Using an Arduino board with a temperature sensor (LM35) and a 940nm IR LED (VS1838B), with the firmware available in https://github.com/kounch/homebridge-mitsubishi-vac-ir, allows to control Mitsubishi Air Conditioners via Homekit.
+Using an Arduino board with a temperature sensor (LM35) or a temperature and humidity sensor (DHT22) and a 940nm IR LED (VS1838B), with the firmware available in https://github.com/kounch/homebridge-mitsubishi-vac-ir, allows to control Mitsubishi Air Conditioners via Homekit.
 
-You can send orders to the Arduino board using a serial connection or, if there is also an ESP8266, using a network connection instead.
+You can send orders to the Arduino board using a serial connection or, if the Arduino has also connected an ESP8266, using a network connection instead.
 
 ### Things to know about this plugin
 
@@ -119,7 +119,7 @@ It is also possible to calibrate the temperature values adding one or two refere
 | model              | Model of your device.                                 | No       |
 | serialnumber       | Serial number of your device.                         | No       |
 | references         | List of "sensor_value" and "real_value" references    | No       |
-| humidity           | If true, current humidity is obtained too             | No       |
+| humidity           | If true, current humidity is obtained too (DHT22)     | No       |
 
 
 
@@ -146,9 +146,9 @@ Señalar que, en iOS 10, la aplicación Casa de Apple todavía no es compatible 
 
 
 ### Cómo funciona
-Usando una placa Arduino con un sensor de temperatura (LM35) y un LED infrarrojo de 940nm (VS1838B), usando el firmoware disponible en  https://github.com/kounch/homebridge-mitsubishi-vac-ir, permite controlar dispositivos de aire acondicionado de Mitsubishi usando Homekit.
+Usando una placa Arduino con un sensor de temperatura (LM35) o un sensor de temperatura y humedad (DHT22) y un LED infrarrojo de 940nm (VS1838B), usando el firmoware disponible en  https://github.com/kounch/homebridge-mitsubishi-vac-ir, permite controlar dispositivos de aire acondicionado de Mitsubishi usando Homekit.
 
-Se pueden enviar las órdenes a la placa Arduion a través de una conexión serie o, si también hay un ESP8266, con una conexión de red en su lugar.
+Se pueden enviar las órdenes a la placa Arduino a través de una conexión serie o, si tiene conectado un ESP8266, con una conexión de red en su lugar.
 
 ### Más información
 
@@ -243,7 +243,7 @@ También es posible realizar una calibración de los valores de temperatura del 
 | model              | Modelo del dispositivo                                | No        |
 | serialnumber       | Número de seri del dispositivo                        | No        |
 | references         | Lista de referencias "sensor_value" y "real_value"    | No        |
-| humidity           | Si es true, se intentará obtener datos de humedad     | No       |
+| humidity           | Si es true, se obtendrán datos de humedad (DHT22)     | No        |
 
 
 \*Cambiar el nombre `name` en `config.json` creará un nuevo dispositivo en vez de renombrar el existente en Homekit. Se recomienda que sólo se cambie el nombre del accesorio usando una App de HomeKit.

@@ -1,6 +1,6 @@
 /*
 homebridge-mitsubishi-vac-ir
-Version 1.3.1
+Version 1.4.0
 
 Mitsubihishi VAC IR Remote plugin for homebridge: https://github.com/nfarina/homebridge
 Copyright (c) 2017 @Kounch
@@ -45,7 +45,6 @@ module.exports = function (homebridge) {
 function MitsubishiVACIRAccessory(log, config) {
   this.log = log;
   this.lastCommandDate = new Date();
-  this.timeout = false;
   this.mode = config.mode || "serial";
   if (this.mode == "serial") {
     this.portName = config.portname || "/dev/ttyACM0";
@@ -142,72 +141,53 @@ function MitsubishiVACIRAccessory(log, config) {
 
 MitsubishiVACIRAccessory.prototype = {
   serialSendCmd: function (message, retries, timeout, callback) {
-    var datos = "";
+    var receivedData = "";
+    var mssg = message;
     var serialPort = new SerialPort(this.portName, {
       baudrate: this.portSpeed
     },
       function (err) {
         if (err) {
-          if (retries) {
-            setTimeout(function () {
-              this.serialSendCmd(message, retries--, timeout, callback);
-            }.bind(this), timeout);
-          } else {
-            callback(err.message);
-          }
+          callback(err.message);
         }
       }.bind(this));
 
-    //Serial Port Open Event
+    //Serial Events
     serialPort.on("open", function () {
-      //Send Data after 1700 milliseconds
-      setTimeout(function (mensa) {
-        for (var i = 0; i < mensa.length; i++) {
-          serialPort.write(new Buffer(mensa[i], 'ascii'), function (err, results) {
-          });
+      //Wait 1700 milliseconds before sending
+      setTimeout(function () {
+        for (var i = 0; i < mssg.length; i++) {
+          serialPort.write(new Buffer(mssg[i], 'ascii'));
         }
-        // Sending the terminate character
-        serialPort.write(new Buffer('\n', 'ascii'), function (err, results) {
-          //this.log('Serial Write Error: ' + err.message);
-        });
-
-        // Get data and close port after 100 milliseconds
+        // Send terminate character
+        serialPort.write(new Buffer('\n', 'ascii'));
+        //Close after 300 milliseconds
         setTimeout(function () {
-          serialPort.close(
-            function (err) {
-              if (err) {
-                //this.log('Serial Close Error:' + err.message);
-              }
-            }.bind(this));
-
-          var result = "KO,Bad Serial Data,";
-          var arrData = datos.split('\n');
-          if (arrData[0].trim() == 'BOOT') {
-            if (arrData.length > 1) {
-              result = arrData.slice(1).join(",");
-            }
-          }
-          arrData = result.split(",");
-          if (arrData[0] == "OK") {
-            callback(null, arrData.slice(1));
-          } else {
-            callback(arrData.slice(1));
-          }
-        }.bind(this), 100);
-      }.bind(this), 1700, message);
-    }.bind(this));;
-
-    //Serial Port Data Event
+          serialPort.close();
+        }.bind(this), 500);
+      }.bind(this), 1700);
+    }.bind(this));
     serialPort.on('data', function (data) {
-      datos += data;
-    }.bind(this));;
-
-    //Serial Port Close Event
+      receivedData += data;
+    }.bind(this));
     serialPort.on('close', function () {
-      //this.log("Serial Port closed");
-    }.bind(this));;
+      var result = "KO,Bad Serial Data,";
+      var arrData = receivedData.split('\n');
+      if (arrData[0].trim() == 'BOOT') {
+        if (arrData.length > 1) {
+          result = arrData.slice(1).join(",");
+        }
+      }
+      arrData = result.split(",");
+      if (arrData[0] == "OK") {
+        callback(null, arrData.slice(1));
+      } else {
+        callback(new Error(arrData.slice(1)));
+      }
+    }.bind(this));
   },
   netSendCmd: function (message, callback) {
+    var timedOut = false;
     var client = new Net.Socket();
     client.setTimeout(3000);
 
@@ -222,8 +202,8 @@ MitsubishiVACIRAccessory.prototype = {
       }
     }.bind(this));
     client.on("error", function (network_error) {
-      if (this.timeout) {
-        this.timeout = false;
+      if (timedOut) {
+        timedOut = false;
       } else {
         callback(network_error);
       }
@@ -232,9 +212,13 @@ MitsubishiVACIRAccessory.prototype = {
       //this.log("Network connection closed");
     }.bind(this));
     client.on("timeout", function () {
-      this.timeout = true;
       client.end();
-      callback(new Error("Network Timeout error"));
+      if (timedOut) {
+        timedOut = false;
+      } else {
+        timedOut = true;
+        callback(new Error("Network Timeout error"));
+      }
     }.bind(this));
 
     //Connection
@@ -366,7 +350,7 @@ MitsubishiVACIRAccessory.prototype = {
     this.log("setActive from/to:", this.Active, value);
     var that = this;
     that.Active = value;
-    this.sendCmd(that, function (error, stdout, stderr) {
+    this.sendCmd(that, function (error) {
       if (error) {
         callback(error);
       } else {
@@ -385,12 +369,12 @@ MitsubishiVACIRAccessory.prototype = {
   },
   setTargetHeaterCoolerState: function (value, callback) {
     if (value === undefined) {
-      callback();
+      callback(null);
     } else {
       this.log("setTargetHeaterCoolerState from/to:", this.TargetHeaterCoolerState, value);
       var that = this;
       that.TargetHeaterCoolerState = value;
-      this.sendCmd(that, function (error, stdout, stderr) {
+      this.sendCmd(that, function (error) {
         if (error) {
           callback(error);
         } else {
@@ -422,12 +406,12 @@ MitsubishiVACIRAccessory.prototype = {
   },
   setSwingMode: function (value, callback) {
     if (value === undefined) {
-      callback();
+      callback(null);
     } else {
       this.log("setSwingMode from/to:", this.SwingMode, value);
       var that = this;
       that.SwingMode = value;
-      this.sendCmd(that, function (error, stdout, stderr) {
+      this.sendCmd(that, function (error) {
         if (error) {
           callback(error);
         } else {
@@ -443,12 +427,12 @@ MitsubishiVACIRAccessory.prototype = {
   },
   setCoolingThresholdTemperature: function (value, callback) {
     if (value === undefined) {
-      callback();
+      callback(null);
     } else {
       this.log("setCoolingThresholdTemperature from/to:", this.CoolingThresholdTemperature, value);
       var that = this;
       that.CoolingThresholdTemperature = value;
-      this.sendCmd(that, function (error, stdout, stderr) {
+      this.sendCmd(that, function (error) {
         if (error) {
           callback(error);
         } else {
@@ -464,12 +448,12 @@ MitsubishiVACIRAccessory.prototype = {
   },
   setHeatingThresholdTemperature: function (value, callback) {
     if (value === undefined) {
-      callback();
+      callback(null);
     } else {
       this.log("setHeatingThresholdTemperature from/to:", this.HeatingThresholdTemperature, value);
       var that = this;
       that.HeatingThresholdTemperature = value;
-      this.sendCmd(that, function (error, stdout, stderr) {
+      this.sendCmd(that, function (error) {
         if (error) {
           callback(error);
         } else {
@@ -494,12 +478,12 @@ MitsubishiVACIRAccessory.prototype = {
   },
   setRotationSpeed: function (value, callback) {
     if (value === undefined) {
-      callback();
+      callback(null);
     } else {
       this.log("setRotationSpeed from/to:", this.RotationSpeed, value);
       var that = this;
       that.RotationSpeed = value;
-      this.sendCmd(that, function (error, stdout, stderr) {
+      this.sendCmd(that, function (error) {
         if (error) {
           callback(error);
         } else {
@@ -515,12 +499,12 @@ MitsubishiVACIRAccessory.prototype = {
   },
   setTargetFanState: function (value, callback) {
     if (value === undefined) {
-      callback();
+      callback(null);
     } else {
       this.log("setTargetFanState from/to:", this.TargetFanState, value);
       var that = this;
       that.TargetFanState = value;
-      this.sendCmd(that, function (error, stdout, stderr) {
+      this.sendCmd(that, function (error) {
         if (error) {
           callback(error);
         } else {
@@ -536,12 +520,12 @@ MitsubishiVACIRAccessory.prototype = {
   },
   setTargetHorizontalTiltAngle: function (value, callback) {
     if (value === undefined) {
-      callback();
+      callback(null);
     } else {
       this.log("setTargetHorizontalTiltAngle from/to:", this.TargetHorizontalTiltAngle, value);
       var that = this;
       that.TargetHorizontalTiltAngle = value;
-      this.sendCmd(that, function (error, stdout, stderr) {
+      this.sendCmd(that, function (error) {
         if (error) {
           callback(error);
         } else {
