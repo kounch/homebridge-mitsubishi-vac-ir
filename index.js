@@ -144,7 +144,7 @@ MitsubishiVACIRAccessory.prototype = {
     var receivedData = "";
     var mssg = message;
     var serialPort = new SerialPort(this.portName, {
-      baudrate: this.portSpeed
+      baudRate: this.portSpeed
     },
       function (err) {
         if (err) {
@@ -157,10 +157,10 @@ MitsubishiVACIRAccessory.prototype = {
       //Wait 1700 milliseconds before sending
       setTimeout(function () {
         for (var i = 0; i < mssg.length; i++) {
-          serialPort.write(new Buffer(mssg[i], 'ascii'));
+          serialPort.write(Buffer.from(mssg[i], 'ascii'));
         }
         // Send terminate character
-        serialPort.write(new Buffer('\n', 'ascii'));
+        serialPort.write(Buffer.from('\n', 'ascii'));
         //Close after 300 milliseconds
         setTimeout(function () {
           serialPort.close();
