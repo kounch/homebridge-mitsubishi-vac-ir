@@ -19,7 +19,7 @@
     "url": "git+https://github.com/kounch/homebridge-mitsubishi-vac-ir.git"
   },
   "dependencies": {
-    "serialport": "^7.0.0"
+    "serialport": "^8.0.0"
   },
   "bugs": {
     "url": "https://github.com/kounch/homebridge-mitsubishi-vac-ir/issues"
