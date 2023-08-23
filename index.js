@@ -1,9 +1,9 @@
 /*
 homebridge-mitsubishi-vac-ir
-Version 1.4.0
+Version 1.4.4
 
 Mitsubihishi VAC IR Remote plugin for homebridge: https://github.com/nfarina/homebridge
-Copyright (c) 2017 @Kounch
+Copyright (c) 2017-2023 @Kounch
 
 Permission to use, copy, modify, and/or distribute this software for any purpose with or without fee is hereby
 granted, provided that the above copyright notice and this permission notice appear in all copies.
@@ -17,7 +17,7 @@ THE USE OR PERFORMANCE OF THIS SOFTWARE.
 Sample configuration file
 {
     "bridge": {
-    	...
+      ...
     },
     "description": "...",
     "accessories": [
@@ -35,6 +35,7 @@ Sample configuration file
 var Service, Characteristic;
 var SerialPort = require('serialport');
 var Net = require('net');
+var serialPort = null;
 
 module.exports = function (homebridge) {
   Service = homebridge.hap.Service;
@@ -49,6 +50,10 @@ function MitsubishiVACIRAccessory(log, config) {
   if (this.mode == "serial") {
     this.portName = config.portname || "/dev/ttyACM0";
     this.portSpeed = config.portspeed || 19200;
+    //this.log(this.portName + "," + this.portSpeed);
+    serialPort = new SerialPort(this.portName, {
+      baudRate: this.portSpeed
+    });
   } else if (this.mode == "network") {
     this.hostname = config.hostname || "arduino_mitsubishi.local";
   } else {
@@ -143,30 +148,7 @@ MitsubishiVACIRAccessory.prototype = {
   serialSendCmd: function (message, retries, timeout, callback) {
     var receivedData = "";
     var mssg = message;
-    var serialPort = new SerialPort(this.portName, {
-      baudRate: this.portSpeed
-    },
-      function (err) {
-        if (err) {
-          callback(err.message);
-        }
-      }.bind(this));
-
     //Serial Events
-    serialPort.on("open", function () {
-      //Wait 1700 milliseconds before sending
-      setTimeout(function () {
-        for (var i = 0; i < mssg.length; i++) {
-          serialPort.write(Buffer.from(mssg[i], 'ascii'));
-        }
-        // Send terminate character
-        serialPort.write(Buffer.from('\n', 'ascii'));
-        //Close after 300 milliseconds
-        setTimeout(function () {
-          serialPort.close();
-        }.bind(this), 500);
-      }.bind(this), 1700);
-    }.bind(this));
     serialPort.on('data', function (data) {
       receivedData += data;
     }.bind(this));
@@ -185,6 +167,34 @@ MitsubishiVACIRAccessory.prototype = {
         callback(new Error(arrData.slice(1)));
       }
     }.bind(this));
+    serialPort.on('error', function (err) {
+      callback(new Error("Serial error: " + err.message));
+    }.bind(this));
+    //Data Send
+    //Wait 1700 milliseconds before sending and reading
+    setTimeout(function () {
+      for (var i = 0; i < mssg.length; i++) {
+        serialPort.write(Buffer.from(mssg[i], 'ascii'));
+      }
+      // Send terminate character
+      serialPort.write(Buffer.from('\n', 'ascii'));
+      //Read after 400 milliseconds
+      setTimeout(function () {
+        var arrData = receivedData.split('\n');
+        if (arrData[0].trim() == 'BOOT') {
+          if (arrData.length > 1) {
+            result = arrData.slice(1).join(",");
+          }
+        }
+        arrData = result.split(",");
+        if (arrData[0] == "OK") {
+          callback(null, arrData.slice(1));
+        } else {
+          callback(new Error(arrData.slice(1)));
+        }
+        receivedData = '';
+      }.bind(this), 400);
+    }.bind(this), 1700);
   },
   netSendCmd: function (message, callback) {
     var timedOut = false;

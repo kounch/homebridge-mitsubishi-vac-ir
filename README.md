@@ -1,16 +1,17 @@
 # homebridge-mitsubishi-vac-ir
+
 Arduino Mitsubishi VAC IR Plugin for [HomeBridge](https://github.com/nfarina/homebridge)
 
-
 ---
-
 
 ## English
 
 ### What this plugin does
+
 Using an Arduino board, it sends IR commands to a Mitsubishi Air Conditioner emulating an infrared remote.
 
 Available commands:
+
 * Target Heater Cooler State (Auto, Heat or Cool)
 * Target Temperature for Heater and/or Cooler
 * Vane Angle
@@ -20,22 +21,24 @@ Available commands:
 
 Take note thas, as of iOS 10, Apple's Home App does not support yet Heater/Cooler devices, so another App like Elgato Eve is neeeded. Starting with iOS 11, basic usage os Heater/Cooler is available with Home App, but controls like vane angle or Automatic Fan Speed aren't available yet. To use these, you will still need another App.
 
-
 ### How this plugin works
-Using an Arduino board with a temperature sensor (LM35) or a temperature and humidity sensor (DHT22) and a 940nm IR LED (VS1838B), with the firmware available in https://github.com/kounch/homebridge_mitsubishi_ir_arduino, allows to control Mitsubishi Air Conditioners via Homekit.
+
+Using an Arduino board with a temperature sensor (LM35) or a temperature and humidity sensor (DHT22) and a 940nm IR LED (VS1838B), with the firmware available in <https://github.com/kounch/homebridge_mitsubishi_ir_arduino>, allows to control Mitsubishi Air Conditioners via Homekit.
 
 You can send orders to the Arduino board using a serial connection or, if the Arduino has also connected an ESP8266, using a network connection instead.
 
 ### Things to know about this plugin
 
 # Installation
+
 1. Install homebridge using `npm install -g homebridge`.
 2. Install this plugin using `npm install -g --unsafe-perm homebridge-mitsubishi-vac-ir`.
 3. Update your configuration file. See configuration sample below.
 
-
 # Configuration
+
 Edit your `config.json` accordingly. Configuration sample:
+
  ```
     "accessories": [
         {
@@ -45,11 +48,12 @@ Edit your `config.json` accordingly. Configuration sample:
     ],
 ```
 
-
 ### Advanced Configuration (Optional)
+
 This step is not required, unless you want to use the network access mode.
 
 #### Serial Mode
+
  ```
     "accessories": [
         {
@@ -70,7 +74,9 @@ This step is not required, unless you want to use the network access mode.
         }
     ],
 ```
+
 #### Network mode
+
  ```
     "accessories": [
         {
@@ -91,8 +97,11 @@ This step is not required, unless you want to use the network access mode.
         }
     ],
 ```
+
 #### Temperature Calibration
+
 It is also possible to calibrate the temperature values adding one or two reference values. For example, if the sensor reports 24 degrees when the real temperature is 26 degrees, and 17.5 when 16, using two references like these:
+
  ```
             "references": [
                 {
@@ -105,7 +114,6 @@ It is also possible to calibrate the temperature values adding one or two refere
                 }
             ]
  ```
-
 
 | Fields             | Description                                           | Required |
 |--------------------|-------------------------------------------------------|----------|
@@ -121,20 +129,18 @@ It is also possible to calibrate the temperature values adding one or two refere
 | references         | List of "sensor_value" and "real_value" references    | No       |
 | humidity           | If true, current humidity is obtained too (DHT22)     | No       |
 
-
-
 \*Changing the `name` in `config.json` will create a new device instead of renaming the existing one in HomeKit. It's strongly recommended that you rename the accessory using a HomeKit app only.
 
-
 ---
-
 
 ## Castellano
 
 ### Para qué sirve este plugin
+
 Usando una placa Arduino, envía comandos infrarrojos a una ire acondicionado Mitsubishi imitando un mando a distancia.
 
 Comandos disponibles:
+
 * Modo deseado (Automático, Calor o Frío)
 * Temperatura desead para calentar y/o enfriar
 * Ángulo de las aletas
@@ -144,22 +150,24 @@ Comandos disponibles:
 
 Señalar que, en iOS 10, la aplicación Casa de Apple todavía no es compatible con dispositivos de aire acondicionado, así que es necesario utilizar otra aplicación como Elgato Eve. A partir de iOS 11, la aplicación Casa ofrece un uso básico, pero controles como el ángulo de las aletas o la velocidad automática del ventilador siguen sin estar disponibles. Para acceder a estos controles, aún es necesario utilizar otra aplicación de terceros.
 
-
 ### Cómo funciona
-Usando una placa Arduino con un sensor de temperatura (LM35) o un sensor de temperatura y humedad (DHT22) y un LED infrarrojo de 940nm (VS1838B), usando el firmoware disponible en https://github.com/kounch/homebridge_mitsubishi_ir_arduino, permite controlar dispositivos de aire acondicionado de Mitsubishi usando Homekit.
+
+Usando una placa Arduino con un sensor de temperatura (LM35) o un sensor de temperatura y humedad (DHT22) y un LED infrarrojo de 940nm (VS1838B), usando el firmoware disponible en <https://github.com/kounch/homebridge_mitsubishi_ir_arduino>, permite controlar dispositivos de aire acondicionado de Mitsubishi usando Homekit.
 
 Se pueden enviar las órdenes a la placa Arduino a través de una conexión serie o, si tiene conectado un ESP8266, con una conexión de red en su lugar.
 
 ### Más información
 
 ### Instalación
+
 1. Instalar homebridge usando `npm install -g homebridge`.
 2. Instalar este plugin con el comando `npm install -g --unsafe-perm homebridge-mitsubishi-vac-ir`.
 3. Actualizar el fichero de configuración. Véase un ejemplo a continuación.
 
-
 ### Configuración
+
 Editar el fichero `config.json` según se necesite. Ejemplo de configuración:
+
  ```
     "accessories": [
         {
@@ -169,11 +177,12 @@ Editar el fichero `config.json` según se necesite. Ejemplo de configuración:
     ],
 ```
 
-
 ### Configuración avanzada (opcional)
+
 Este paso no es necesario, a no ser que se desee utilizar el modo de acceso vía red.
- 
+
 #### Modo conexión serie
+
  ```
     "accessories": [
         {
@@ -194,7 +203,9 @@ Este paso no es necesario, a no ser que se desee utilizar el modo de acceso vía
         }
     ],
 ```
+
 #### Modo conexión de red
+
  ```
     "accessories": [
         {
@@ -215,8 +226,11 @@ Este paso no es necesario, a no ser que se desee utilizar el modo de acceso vía
         }
     ],
 ```
+
 #### Calibración de temperatura
+
 También es posible realizar una calibración de los valores de temperatura del sensor añadiendo uno o dos valores de referencia. Por ejemplo, si se observa que el sensor indica 24 grados a los 26 grados reales y 17,5 a los 16 reales, con dos referencias así:
+
  ```
             "references": [
                 {
@@ -229,7 +243,6 @@ También es posible realizar una calibración de los valores de temperatura del 
                 }
             ]
  ```
-
 
 | Campos             | Descrición                                            | Requerido |
 |--------------------|-------------------------------------------------------|-----------|
@@ -245,13 +258,11 @@ También es posible realizar una calibración de los valores de temperatura del 
 | references         | Lista de referencias "sensor_value" y "real_value"    | No        |
 | humidity           | Si es true, se obtendrán datos de humedad (DHT22)     | No        |
 
-
 \*Cambiar el nombre `name` en `config.json` creará un nuevo dispositivo en vez de renombrar el existente en Homekit. Se recomienda que sólo se cambie el nombre del accesorio usando una App de HomeKit.
-
 
 ### Copyright
 
-Copyright (c) 2017 kounch
+Copyright (c) 2017-2023 kounch
 
 Permission to use, copy, modify, and/or distribute this software for any purpose with or without fee is hereby granted, provided that the above copyright notice and this permission notice appear in all copies.
 
